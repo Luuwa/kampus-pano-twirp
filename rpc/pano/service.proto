@@ -6,6 +6,7 @@ option go_package = "/rpc/pano";
 service Pano {
   // GetPost produces a Post of Kampus-Pano
   rpc GetPost(GetPostRequest) returns (Post);
+  rpc CreatePost(CreatePostRequest) returns (Post);
 }
 
 // Id of Post.
@@ -21,4 +22,10 @@ message Post {
   string content = 5;
   string userID = 6;
 }
-
+// Create Post is for client to create posts
+message CreatePostRequest {
+  string title = 1;
+  string site = 2;
+  string content = 3;
+  string userID = 4;
+}

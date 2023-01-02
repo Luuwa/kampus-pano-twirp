@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"net/http"
-
-	"github.com/kamp-us/pano-service/internal/panoserver"
-
 	"github.com/kamp-us/pano-service/internal/db"
+	"github.com/kamp-us/pano-service/internal/models"
+	"github.com/kamp-us/pano-service/internal/panoserver"
 	panoapi "github.com/kamp-us/pano-service/rpc/pano"
 	"github.com/kamp-us/pano-service/server"
+	"log"
+	"net/http"
 )
 
 func main() {
@@ -18,13 +17,17 @@ func main() {
 		Port:     5555,
 		Username: "pgtest",
 		Password: "pgtest",
-		DbName:   "pgtest",
+		DbName:   "pgtest1",
 	})
 
 	if err != nil {
 		log.Fatal("error while creating a db connection pool", err)
 	}
 
+	if err != nil {
+		return
+	}
+	err = models.AutoMigrate(dbClient)
 	if err != nil {
 		return
 	}

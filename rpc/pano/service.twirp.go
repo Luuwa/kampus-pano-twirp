@@ -35,6 +35,8 @@ const _ = twirp.TwirpPackageMinVersion_8_1_0
 type Pano interface {
 	// GetPost produces a Post of Kampus-Pano
 	GetPost(context.Context, *GetPostRequest) (*Post, error)
+
+	CreatePost(context.Context, *CreatePostRequest) (*Post, error)
 }
 
 // ====================
@@ -43,7 +45,7 @@ type Pano interface {
 
 type panoProtobufClient struct {
 	client      HTTPClient
-	urls        [1]string
+	urls        [2]string
 	interceptor twirp.Interceptor
 	opts        twirp.ClientOptions
 }
@@ -71,8 +73,9 @@ func NewPanoProtobufClient(baseURL string, client HTTPClient, opts ...twirp.Clie
 	// Build method URLs: <baseURL>[<prefix>]/<package>.<Service>/<Method>
 	serviceURL := sanitizeBaseURL(baseURL)
 	serviceURL += baseServicePath(pathPrefix, "kampus.pano", "Pano")
-	urls := [1]string{
+	urls := [2]string{
 		serviceURL + "GetPost",
+		serviceURL + "CreatePost",
 	}
 
 	return &panoProtobufClient{
@@ -129,13 +132,59 @@ func (c *panoProtobufClient) callGetPost(ctx context.Context, in *GetPostRequest
 	return out, nil
 }
 
+func (c *panoProtobufClient) CreatePost(ctx context.Context, in *CreatePostRequest) (*Post, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "kampus.pano")
+	ctx = ctxsetters.WithServiceName(ctx, "Pano")
+	ctx = ctxsetters.WithMethodName(ctx, "CreatePost")
+	caller := c.callCreatePost
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *CreatePostRequest) (*Post, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*CreatePostRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*CreatePostRequest) when calling interceptor")
+					}
+					return c.callCreatePost(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*Post)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*Post) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *panoProtobufClient) callCreatePost(ctx context.Context, in *CreatePostRequest) (*Post, error) {
+	out := new(Post)
+	ctx, err := doProtobufRequest(ctx, c.client, c.opts.Hooks, c.urls[1], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
 // ================
 // Pano JSON Client
 // ================
 
 type panoJSONClient struct {
 	client      HTTPClient
-	urls        [1]string
+	urls        [2]string
 	interceptor twirp.Interceptor
 	opts        twirp.ClientOptions
 }
@@ -163,8 +212,9 @@ func NewPanoJSONClient(baseURL string, client HTTPClient, opts ...twirp.ClientOp
 	// Build method URLs: <baseURL>[<prefix>]/<package>.<Service>/<Method>
 	serviceURL := sanitizeBaseURL(baseURL)
 	serviceURL += baseServicePath(pathPrefix, "kampus.pano", "Pano")
-	urls := [1]string{
+	urls := [2]string{
 		serviceURL + "GetPost",
+		serviceURL + "CreatePost",
 	}
 
 	return &panoJSONClient{
@@ -207,6 +257,52 @@ func (c *panoJSONClient) GetPost(ctx context.Context, in *GetPostRequest) (*Post
 func (c *panoJSONClient) callGetPost(ctx context.Context, in *GetPostRequest) (*Post, error) {
 	out := new(Post)
 	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[0], in, out)
+	if err != nil {
+		twerr, ok := err.(twirp.Error)
+		if !ok {
+			twerr = twirp.InternalErrorWith(err)
+		}
+		callClientError(ctx, c.opts.Hooks, twerr)
+		return nil, err
+	}
+
+	callClientResponseReceived(ctx, c.opts.Hooks)
+
+	return out, nil
+}
+
+func (c *panoJSONClient) CreatePost(ctx context.Context, in *CreatePostRequest) (*Post, error) {
+	ctx = ctxsetters.WithPackageName(ctx, "kampus.pano")
+	ctx = ctxsetters.WithServiceName(ctx, "Pano")
+	ctx = ctxsetters.WithMethodName(ctx, "CreatePost")
+	caller := c.callCreatePost
+	if c.interceptor != nil {
+		caller = func(ctx context.Context, req *CreatePostRequest) (*Post, error) {
+			resp, err := c.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*CreatePostRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*CreatePostRequest) when calling interceptor")
+					}
+					return c.callCreatePost(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*Post)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*Post) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+	return caller(ctx, in)
+}
+
+func (c *panoJSONClient) callCreatePost(ctx context.Context, in *CreatePostRequest) (*Post, error) {
+	out := new(Post)
+	ctx, err := doJSONRequest(ctx, c.client, c.opts.Hooks, c.urls[1], in, out)
 	if err != nil {
 		twerr, ok := err.(twirp.Error)
 		if !ok {
@@ -320,6 +416,9 @@ func (s *panoServer) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	switch method {
 	case "GetPost":
 		s.serveGetPost(ctx, resp, req)
+		return
+	case "CreatePost":
+		s.serveCreatePost(ctx, resp, req)
 		return
 	default:
 		msg := fmt.Sprintf("no handler for path %q", req.URL.Path)
@@ -485,6 +584,186 @@ func (s *panoServer) serveGetPostProtobuf(ctx context.Context, resp http.Respons
 	}
 	if respContent == nil {
 		s.writeError(ctx, resp, twirp.InternalError("received a nil *Post and nil error while calling GetPost. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	respBytes, err := proto.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal proto response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/protobuf")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *panoServer) serveCreatePost(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	header := req.Header.Get("Content-Type")
+	i := strings.Index(header, ";")
+	if i == -1 {
+		i = len(header)
+	}
+	switch strings.TrimSpace(strings.ToLower(header[:i])) {
+	case "application/json":
+		s.serveCreatePostJSON(ctx, resp, req)
+	case "application/protobuf":
+		s.serveCreatePostProtobuf(ctx, resp, req)
+	default:
+		msg := fmt.Sprintf("unexpected Content-Type: %q", req.Header.Get("Content-Type"))
+		twerr := badRouteError(msg, req.Method, req.URL.Path)
+		s.writeError(ctx, resp, twerr)
+	}
+}
+
+func (s *panoServer) serveCreatePostJSON(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "CreatePost")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	d := json.NewDecoder(req.Body)
+	rawReqBody := json.RawMessage{}
+	if err := d.Decode(&rawReqBody); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+	reqContent := new(CreatePostRequest)
+	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: true}
+	if err = unmarshaler.Unmarshal(rawReqBody, reqContent); err != nil {
+		s.handleRequestBodyError(ctx, resp, "the json request could not be decoded", err)
+		return
+	}
+
+	handler := s.Pano.CreatePost
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *CreatePostRequest) (*Post, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*CreatePostRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*CreatePostRequest) when calling interceptor")
+					}
+					return s.Pano.CreatePost(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*Post)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*Post) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *Post
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *Post and nil error while calling CreatePost. nil responses are not supported"))
+		return
+	}
+
+	ctx = callResponsePrepared(ctx, s.hooks)
+
+	marshaler := &protojson.MarshalOptions{UseProtoNames: !s.jsonCamelCase, EmitUnpopulated: !s.jsonSkipDefaults}
+	respBytes, err := marshaler.Marshal(respContent)
+	if err != nil {
+		s.writeError(ctx, resp, wrapInternal(err, "failed to marshal json response"))
+		return
+	}
+
+	ctx = ctxsetters.WithStatusCode(ctx, http.StatusOK)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	resp.WriteHeader(http.StatusOK)
+
+	if n, err := resp.Write(respBytes); err != nil {
+		msg := fmt.Sprintf("failed to write response, %d of %d bytes written: %s", n, len(respBytes), err.Error())
+		twerr := twirp.NewError(twirp.Unknown, msg)
+		ctx = callError(ctx, s.hooks, twerr)
+	}
+	callResponseSent(ctx, s.hooks)
+}
+
+func (s *panoServer) serveCreatePostProtobuf(ctx context.Context, resp http.ResponseWriter, req *http.Request) {
+	var err error
+	ctx = ctxsetters.WithMethodName(ctx, "CreatePost")
+	ctx, err = callRequestRouted(ctx, s.hooks)
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+
+	buf, err := io.ReadAll(req.Body)
+	if err != nil {
+		s.handleRequestBodyError(ctx, resp, "failed to read request body", err)
+		return
+	}
+	reqContent := new(CreatePostRequest)
+	if err = proto.Unmarshal(buf, reqContent); err != nil {
+		s.writeError(ctx, resp, malformedRequestError("the protobuf request could not be decoded"))
+		return
+	}
+
+	handler := s.Pano.CreatePost
+	if s.interceptor != nil {
+		handler = func(ctx context.Context, req *CreatePostRequest) (*Post, error) {
+			resp, err := s.interceptor(
+				func(ctx context.Context, req interface{}) (interface{}, error) {
+					typedReq, ok := req.(*CreatePostRequest)
+					if !ok {
+						return nil, twirp.InternalError("failed type assertion req.(*CreatePostRequest) when calling interceptor")
+					}
+					return s.Pano.CreatePost(ctx, typedReq)
+				},
+			)(ctx, req)
+			if resp != nil {
+				typedResp, ok := resp.(*Post)
+				if !ok {
+					return nil, twirp.InternalError("failed type assertion resp.(*Post) when calling interceptor")
+				}
+				return typedResp, err
+			}
+			return nil, err
+		}
+	}
+
+	// Call service method
+	var respContent *Post
+	func() {
+		defer ensurePanicResponses(ctx, resp, s.hooks)
+		respContent, err = handler(ctx, reqContent)
+	}()
+
+	if err != nil {
+		s.writeError(ctx, resp, err)
+		return
+	}
+	if respContent == nil {
+		s.writeError(ctx, resp, twirp.InternalError("received a nil *Post and nil error while calling CreatePost. nil responses are not supported"))
 		return
 	}
 
@@ -1089,19 +1368,21 @@ func callClientError(ctx context.Context, h *twirp.ClientHooks, err twirp.Error)
 }
 
 var twirpFileDescriptor0 = []byte{
-	// 213 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x5c, 0x90, 0x31, 0x4b, 0xc4, 0x40,
-	0x10, 0x85, 0x49, 0xdc, 0xcb, 0x71, 0x73, 0x70, 0xe0, 0x20, 0xc7, 0xa2, 0x4d, 0x48, 0x65, 0xb5,
-	0x01, 0xad, 0x2c, 0x95, 0x80, 0xa4, 0x0b, 0x29, 0xed, 0x62, 0x18, 0x42, 0x30, 0xee, 0xae, 0xbb,
-	0xb3, 0xfe, 0x04, 0x7f, 0xb7, 0x64, 0x4d, 0xc0, 0x5c, 0x37, 0xef, 0xfb, 0x9a, 0x79, 0x0f, 0xce,
-	0xce, 0xf6, 0xa5, 0xed, 0xb4, 0x29, 0x3d, 0xb9, 0xef, 0xb1, 0x27, 0x65, 0x9d, 0x61, 0x83, 0xc7,
-	0x8f, 0xee, 0xd3, 0x06, 0xaf, 0x66, 0x55, 0xe4, 0x70, 0x7a, 0x25, 0x6e, 0x8c, 0xe7, 0x96, 0xbe,
-	0x02, 0x79, 0xc6, 0x13, 0xa4, 0x75, 0x25, 0x93, 0x3c, 0xb9, 0x3f, 0xb4, 0x69, 0x5d, 0x15, 0x3f,
-	0x09, 0x88, 0xd9, 0x5f, 0x0a, 0xbc, 0x81, 0x1d, 0x8f, 0x3c, 0x91, 0x4c, 0x23, 0xfa, 0x0b, 0x88,
-	0x20, 0xfc, 0xc8, 0x24, 0xaf, 0x22, 0x8c, 0x77, 0x64, 0x53, 0x18, 0xa4, 0x58, 0xd8, 0x14, 0x06,
-	0x94, 0xb0, 0xef, 0x8d, 0x66, 0xd2, 0x2c, 0x77, 0x11, 0xaf, 0x11, 0xcf, 0x90, 0x05, 0x4f, 0xae,
-	0xae, 0x64, 0x16, 0xc5, 0x92, 0x1e, 0x9e, 0x41, 0x34, 0x9d, 0x36, 0xf8, 0x04, 0xfb, 0xe5, 0x65,
-	0xbc, 0x53, 0xff, 0xba, 0xa8, 0x6d, 0x91, 0xdb, 0xeb, 0x8d, 0x9c, 0xcd, 0xcb, 0xf1, 0xed, 0x50,
-	0xae, 0xab, 0xbc, 0x67, 0x71, 0x8e, 0xc7, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x44, 0x2f, 0xa7,
-	0xff, 0x28, 0x01, 0x00, 0x00,
+	// 255 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x51, 0xc1, 0x4a, 0xc3, 0x40,
+	0x10, 0x25, 0x69, 0x9a, 0xd2, 0x29, 0x14, 0x3a, 0x48, 0x59, 0x14, 0xa4, 0xe4, 0xe4, 0x29, 0x01,
+	0x3d, 0x79, 0x12, 0x34, 0x20, 0xb9, 0x49, 0x8f, 0xde, 0x62, 0x18, 0x4a, 0x30, 0x66, 0xe3, 0xee,
+	0xac, 0x1f, 0xe0, 0xc1, 0xef, 0x96, 0x8c, 0xa9, 0x6e, 0x34, 0xde, 0xf6, 0xbd, 0x37, 0xec, 0x7b,
+	0xf3, 0x06, 0xb6, 0xa6, 0xab, 0xb2, 0xae, 0x6c, 0x75, 0x66, 0xc9, 0xbc, 0xd5, 0x15, 0xa5, 0x9d,
+	0xd1, 0xac, 0x71, 0xf5, 0x5c, 0xbe, 0x74, 0xce, 0xa6, 0xbd, 0x94, 0xec, 0x60, 0x7d, 0x4f, 0xfc,
+	0xa0, 0x2d, 0xef, 0xe9, 0xd5, 0x91, 0x65, 0x5c, 0x43, 0x58, 0xe4, 0x2a, 0xd8, 0x05, 0x17, 0xcb,
+	0x7d, 0x58, 0xe4, 0xc9, 0x47, 0x00, 0x51, 0xaf, 0xff, 0x16, 0xf0, 0x04, 0xe6, 0x5c, 0x73, 0x43,
+	0x2a, 0x14, 0xea, 0x0b, 0x20, 0x42, 0x64, 0x6b, 0x26, 0x35, 0x13, 0x52, 0xde, 0xc2, 0x35, 0xee,
+	0xa0, 0xa2, 0x81, 0x6b, 0xdc, 0x01, 0x15, 0x2c, 0x2a, 0xdd, 0x32, 0xb5, 0xac, 0xe6, 0x42, 0x1f,
+	0x21, 0x6e, 0x21, 0x76, 0x96, 0x4c, 0x91, 0xab, 0x58, 0x84, 0x01, 0x25, 0x1a, 0x36, 0x77, 0x86,
+	0x4a, 0x26, 0x3f, 0xed, 0x77, 0x88, 0x60, 0x2a, 0x44, 0xe8, 0x85, 0xf0, 0x0c, 0x67, 0xff, 0x19,
+	0x46, 0xbe, 0xe1, 0xe5, 0x7b, 0xbf, 0x79, 0xd9, 0x6a, 0xbc, 0x86, 0xc5, 0x50, 0x12, 0x9e, 0xa5,
+	0x5e, 0x7b, 0xe9, 0xb8, 0xba, 0xd3, 0xcd, 0x48, 0x94, 0xf9, 0x1b, 0x80, 0x9f, 0xd0, 0x78, 0x3e,
+	0x1a, 0xf8, 0xb3, 0xcd, 0xc4, 0x07, 0xb7, 0xab, 0xc7, 0x65, 0x76, 0x3c, 0xe4, 0x53, 0x2c, 0x17,
+	0xbc, 0xfa, 0x0c, 0x00, 0x00, 0xff, 0xff, 0x5d, 0xea, 0x5d, 0x87, 0xdb, 0x01, 0x00, 0x00,
 }

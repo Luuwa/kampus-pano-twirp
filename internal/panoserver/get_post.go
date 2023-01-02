@@ -11,11 +11,5 @@ func (b *PostgreSQLBackend) GetPost(ctx context.Context, id string) (*models.Pos
 	if result.Error != nil {
 		return nil, result.Error
 	}
-
-	query := b.DB.Preload("Categories").Find(&post)
-	if query.Error != nil {
-		return nil, query.Error
-	}
-
 	return &post, nil
 }
