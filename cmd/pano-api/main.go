@@ -2,22 +2,23 @@ package main
 
 import (
 	"fmt"
-	"github.com/kamp-us/pano-service/internal/db"
-	"github.com/kamp-us/pano-service/internal/models"
-	"github.com/kamp-us/pano-service/internal/panoserver"
-	panoapi "github.com/kamp-us/pano-service/rpc/pano"
-	"github.com/kamp-us/pano-service/server"
 	"log"
 	"net/http"
+
+	"github.com/kamp-us/pano-service/internal/db"
+	"github.com/kamp-us/pano-service/internal/models"
+	backend "github.com/kamp-us/pano-service/internal/panoserver"
+	panoapi "github.com/kamp-us/pano-service/rpc/pano"
+	"github.com/kamp-us/pano-service/server"
 )
 
 func main() {
 	dbClient, err := db.NewPostgreSQLConnection(db.PostgreSQLConfig{
-		Host:     "192.168.1.103",
-		Port:     5555,
-		Username: "pgtest",
-		Password: "pgtest",
-		DbName:   "pgtest1",
+		Host:     "top2.nearest.of.panoservice-db.internal",
+		Port:     5432,
+		Username: "panoservice",
+		Password: "nvtTe5igBmN5cuv",
+		DbName:   "panoservice",
 	})
 
 	if err != nil {
@@ -43,5 +44,5 @@ func main() {
 		rw.Write([]byte("OK"))
 	}))
 
-	http.ListenAndServe(":80", mux)
+	http.ListenAndServe("0.0.0.0:8080", mux)
 }
